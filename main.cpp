@@ -8,13 +8,6 @@
 #include <ctime>
 #include <random>
 using namespace std;
-/*
-    IMPORTANTE IMPLEMENTAR
-    -Probar Greedy con distintos parámetros.
-    -Los cursos pueden tener más de un pre-requisito. (Listo)
-    -Automatizar pruebas con BATCH (semi-listo)
-    -Implementar Algoritmo Genético
-*/
 /**
  * @brief Calcula la desviación cuadrada de los ramos.
  * @param creditos_semestre Créditos de cada semestre.
@@ -73,10 +66,10 @@ string print_malla(const vector<vector<int>> &cursos_semestre, const vector<stri
         output += "Semestre " + to_string(i + 1) + ":\n";
         int jmax = cursos_semestre[i].size(), _creditos = 0;
         for(int j = 0; j < jmax; j++){
-            output += "    " + cursos[cursos_semestre[i][j]] + " (" + to_string(creditos[cursos_semestre[i][j]]) + ")\n";
+            output += "    " + cursos[cursos_semestre[i][j]] + " (" + to_string(creditos[cursos_semestre[i][j]]) + ")";
             _creditos += creditos[cursos_semestre[i][j]];
         }
-        output += "Créditos: " + to_string(_creditos) + "\n"
+        output += "\nCréditos: " + to_string(_creditos) + "\n"
             + "Asignaturas: " + to_string(jmax) + "\n";
     }
     return output;
@@ -248,19 +241,20 @@ int main(){
     outFile.close();
     vector<string> archivos = {
         "bacp8.txt",
-        //"bacp10.txt",
-        //"bacp12.txt",
-        //"utfsm3.txt",
-        //"utfsm2311.txt",
-        //"utfsm2920.txt",
-        //"utfsm7310.txt",
-        //"utfsm7313.txt"
+        "bacp10.txt",
+        "bacp12.txt",
+        "utfsm3.txt",
+        "utfsm2311.txt",
+        "utfsm2920.txt",
+        "utfsm7310.txt",
+        "utfsm7313.txt"
     };
-    bool MODELO_HC = true;
+    bool MODELO_HC = false;
     bool MODELO_AE = true;
-    bool SHOW_MALLA = true;
+    bool SHOW_MALLA = false;
     for(int i_a = archivos.size() - 1; i_a >= 0; i_a--){
         string filename = archivos[i_a];
+        cout << filename << endl;
         ifstream file(filename);
         if (!file.is_open()){
             cerr << "Archivo no encontrado.\n";
@@ -352,7 +346,6 @@ int main(){
             vector<vector<int>> cursos_semestre(p);
             greedy(x, creditos_semestre, cursos_semestre, curso_semestre_min, curso_semestre_max, creditos, requisito, creditos_promedio, cursos_promedio, cursos_total, b, d);
             int MAX_ITER = 100, counter = 0;
-            bool OUTPUT = false;
             vector<int> flip(cursos_total);
             for(int i = 0; i < cursos_total; i++)
                 flip[i] = i;
@@ -385,15 +378,15 @@ int main(){
             int AE_random_steps = 20;
             int MAX_ITER = 1000;
             float MIN_FIT = 1.0;
-            auto start = chrono::steady_clock::now(); //Iniciar timer
             vector<int> x(cursos_total);
             vector<int> creditos_semestre(p, 0);
             vector<vector<int>> cursos_semestre(p);
             greedy(x, creditos_semestre, cursos_semestre, curso_semestre_min, curso_semestre_max, creditos, requisito, creditos_promedio, cursos_promedio, cursos_total, b, d);
+            //cout << filename << ": " << evaluar(creditos_semestre, p, creditos_promedio) << endl;
             srand(time(0));
-            vector<vector<int>> x_inst(AE_instancias);
-            vector<vector<int>> creditos_semestre_inst(AE_instancias);
-            vector<vector<vector<int>>> cursos_semestre_inst(AE_instancias);
+            vector<vector<int>> x_inst(AE_instancias + 1);
+            vector<vector<int>> creditos_semestre_inst(AE_instancias + 1);
+            vector<vector<vector<int>>> cursos_semestre_inst(AE_instancias + 1);
             vector<int> flip(cursos_total);
             for(int i = 0; i < cursos_total; i++)
                 flip[i] = i;
@@ -408,9 +401,7 @@ int main(){
                     movimiento(x_inst[inst], creditos_semestre_inst[inst], cursos_semestre_inst[inst], creditos, curso_semestre_min, curso_semestre_max, requisito, post_requisito, flip, creditos_promedio, cursos_total, p, a, b, c, d, false);
                 }
             }
-            auto end = chrono::steady_clock::now(); //Terminar timer
-            cout << "Tiempo de generación de " << AE_instancias << " instancias: " << chrono::duration_cast<chrono::milliseconds>(end - start).count() << "ms\n";
-            start = chrono::steady_clock::now(); //Iniciar timer
+            auto start = chrono::steady_clock::now(); //Iniciar timer
             float best_fit = 999999.9;
             for(int iter = 0; iter < MAX_ITER; iter++){
                 bool stable = true;
@@ -422,7 +413,10 @@ int main(){
                     float a = evaluar(creditos_semestre_inst[inst], p, creditos_promedio);
                     if (a < best_fit){
                         best_fit = a;
-                        cout << iter << ": " << best_fit << endl;
+                        //cout << iter << ", " << a << endl;
+                        x_inst[AE_instancias] = x_inst[inst];
+                        creditos_semestre_inst[AE_instancias] = creditos_semestre_inst[inst];
+                        cursos_semestre_inst[AE_instancias] = cursos_semestre_inst[inst];
                         if (a < MIN_FIT || isnan(a)){
                             finish = true;
                             cout << "Mejor modelo encontrado\n";
@@ -453,18 +447,8 @@ int main(){
                 if (stable)
                     break;
             }
-            float min_valor = 9999999;
-            int min_model = 0;
-            for(int inst = 0; inst < AE_instancias; inst++){
-                float a = evaluar(creditos_semestre_inst[inst], p, creditos_promedio);
-                if (a < min_valor){
-                    min_valor = a;
-                    min_model = inst;
-                }
-            }
-            end = chrono::steady_clock::now(); //Terminar timer
+            auto end = chrono::steady_clock::now(); //Terminar timer
             //---------------------------------------------------------Resultados--------------------------------------------------------------------
-            cout << "Tiempo de ejecución de " << AE_instancias << " instancias: " << chrono::duration_cast<chrono::milliseconds>(end - start).count() << "ms\n";
             ofstream outFile("output.txt", ios::app);
             if (!outFile.is_open()) {
                 cerr << "Error opening file!" << endl;
@@ -472,10 +456,10 @@ int main(){
             }
             outFile << filename << " - Algoritmo Evolutivo\n"
                 << "Tiempo de evolución de " << AE_instancias << " instancias con " << MAX_ITER << " generaciones: " << chrono::duration_cast<chrono::milliseconds>(end - start).count() << "ms\n"
-                << "Valor mínimo: " << min_valor << "\n"
-                << "Es válido? " << (validar(cursos_semestre_inst[min_model], creditos_semestre_inst[min_model], x_inst[min_model], requisito, p, a, b, c, d) ? "No" : "Sí") << "\n\n";
+                << "Valor mínimo: " << best_fit << "\n"
+                << "Es válido? " << (validar(cursos_semestre_inst[AE_instancias], creditos_semestre_inst[AE_instancias], x_inst[AE_instancias], requisito, p, a, b, c, d) ? "No" : "Sí") << "\n\n";
             if (SHOW_MALLA)
-                outFile << print_malla(cursos_semestre_inst[min_model], cursos, creditos) << "\n";
+                outFile << print_malla(cursos_semestre_inst[AE_instancias], cursos, creditos) << "\n";
             outFile.close();
             x_inst.clear();
             cursos_semestre_inst.clear();
